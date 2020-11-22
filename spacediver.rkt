@@ -53,16 +53,37 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 (: reset-state (-> Void))
 (define (reset-state)
+  ; Clear link state
   (hash-clear! links)
-  (current-link-number 1))
+  (current-link-number 1)
+
+  ; Clear terminal
+  (display "\033c"))
 
 (: display-link (-> String Void))
 (define (display-link link)
   (define tokens (string-split link))
   (debug tokens)
-  (displayln (~a "[" (current-link-number) "]  " (string-join (cddr tokens))))
+  (displayln (~a "\033[1m["
+                 (current-link-number)
+                 "]  \033[0m\033[4;36m"
+                 (string-join (cddr tokens))
+                 "\033[0m"))
   (hash-set! links (current-link-number) (cadr tokens))
   (current-link-number (add1 (current-link-number))))
+
+(: display-header (-> String Void))
+(define (display-header header)
+  ; Write out color based on type of header
+  (display
+    (match header
+      ; h3
+      [(regexp #rx"^###") "\033[1;33m"]
+      ; h2
+      [(regexp #rx"^##")  "\033[1;32m"]
+      ; h1
+      [_                  "\033[1;31m"]))
+  (displayln (~a header "\033[0m")))
 
 #|
 Display the current page
@@ -73,7 +94,6 @@ Parameters:
 (: display-gemtext (-> Boolean Void))
 (define (display-gemtext raw)
   (reset-state)
-  ; Skip first line (status code) if pretty printing, but include in raw mode
   (: page (Listof String))
   (define page (cdar (current-pages)))
 
@@ -81,8 +101,12 @@ Parameters:
   (: current-pre (Parameterof Boolean))
   (define current-pre (make-parameter #f))
 
+  ; Skip first line (status code) if pretty printing and status code is 20, but
+  ; otherwise include it
+  (define lines
+    (if (or raw (not (regexp-match #rx"^20" (car page)))) page (cdr page)))
+
   ; Parse lines
-  (define lines (if raw page (cdr page)))
   (for ([line lines])
     (cond
       ; Raw mode does no processing
@@ -93,8 +117,13 @@ Parameters:
       [(current-pre) (displayln line)]
       ; Link
       [(regexp-match #rx"^=>" line) (display-link line)]
+      ; Header
+      [(regexp-match #rx"^#" line) (display-header line)]
       ; Normal text
-      [else (displayln line)])))
+      [else (displayln line)]))
+
+  ; Add an extra newline before the prompt
+  (displayln ""))
 
 #|
 Given a url string, transacts with the server and displays rendered gemtext.
@@ -156,8 +185,10 @@ case do nothing
     [(eof-object? expr) (void)]
     [else
       (match expr
+        ; Open URL
+        [(regexp #rx"^o ") (handle-url (substring expr 2))]
         ; Follow a link
-        [(regexp #"^l ") (handle-link (substring expr 2))]
+        [(regexp #rx"^l ") (handle-link (substring expr 2))]
         ; Display raw gemtext for current page
         ["raw" (display-gemtext #t)]
         ; Re-display pretty printed gemtext for current page
@@ -166,8 +197,8 @@ case do nothing
         ["b" (handle-history current-pages current-forwards)]
         ; For forward one page (if possible)
         ["f" (handle-history current-forwards current-pages)]
-        ; Treat input as a url to open
-        [_ (handle-url expr)])
+        ; Treat everything else as links
+        [_ (handle-link expr)])
       (repl)]))
 
 ; TODO: Main function
