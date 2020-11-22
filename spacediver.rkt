@@ -19,7 +19,8 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #lang typed/racket/base
 
-(require racket/format
+(require racket/file
+         racket/format
          racket/match
          racket/string
          typed/net/url
@@ -191,6 +192,15 @@ case do nothing
     (from (cdr (from)))
     (display-gemtext #f)))
 
+#|
+Writes the gemtext for the current page to `path`
+|#
+(: write-gemtext (-> String Void))
+(define (write-gemtext path)
+  (display-lines-to-file (cddar (current-pages))
+                         path
+                         #:exists 'truncate/replace))
+
 (: repl (-> Void))
 (define (repl)
   (display REPL_PROMPT)
@@ -201,9 +211,9 @@ case do nothing
     [else
       (match expr
         ; Open URL
-        [(regexp #rx"^o ") (handle-url (substring expr 2))]
+        [(regexp #rx"^o ") (handle-url (string-trim (substring expr 2)))]
         ; Follow a link
-        [(regexp #rx"^l ") (handle-link (substring expr 2))]
+        [(regexp #rx"^l ") (handle-link (string-trim (substring expr 2)))]
         ; Display raw gemtext for current page
         ["raw" (display-gemtext #t)]
         ; Re-display pretty printed gemtext for current page
@@ -212,6 +222,8 @@ case do nothing
         ["b" (handle-history current-pages current-forwards)]
         ; For forward one page (if possible)
         ["f" (handle-history current-forwards current-pages)]
+        ; Save current page to a file
+        [(regexp #rx"^w ") (write-gemtext (string-trim (substring expr 2)))]
         ; Treat everything else as links
         [_ (handle-link expr)])
       (repl)]))
