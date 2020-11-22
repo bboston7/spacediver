@@ -23,6 +23,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
          racket/format
          racket/match
          racket/string
+         racket/system
          typed/net/url
          "gemini.rkt")
 
@@ -141,6 +142,7 @@ Parameters:
   ; Add an extra newline before the prompt
   (displayln ""))
 
+
 #|
 Given a url string, transacts with the server and displays rendered gemtext.
 Handles both relative and absolute paths.
@@ -201,6 +203,16 @@ Writes the gemtext for the current page to `path`
                          path
                          #:exists 'truncate/replace))
 
+#|
+Use tmux to go to the top of the page
+|#
+(: goto-top (-> Void))
+(define (goto-top)
+  (system "tmux copy-mode")
+  (system "tmux send-keys g")
+  (void))
+
+
 (: repl (-> Void))
 (define (repl)
   (display REPL_PROMPT)
@@ -224,6 +236,8 @@ Writes the gemtext for the current page to `path`
         ["f" (handle-history current-forwards current-pages)]
         ; Save current page to a file
         [(regexp #rx"^w ") (write-gemtext (string-trim (substring expr 2)))]
+        ; Scroll to the top of the page
+        ["t" (goto-top)]
         ; Treat everything else as links
         [_ (handle-link expr)])
       (repl)]))
