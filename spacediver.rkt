@@ -63,9 +63,17 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 (: display-link (-> String Void))
 (define (display-link link)
   (define tokens (string-split link))
+
+  ; If link to a gemini page, give it a number.  Otherwise, display the scheme
+  ; instead of a number to make it unselectable.
+  (define link-scheme (url-scheme (string->url (cadr tokens))))
+  (define gemini? (or (not link-scheme) (equal? link-scheme "gemini")))
+  (define link-id (if gemini? (current-link-number) link-scheme))
+
+  ; Display the link line
   (displayln (~a
     ; link number
-    "\033[1m[" (current-link-number) "]\033[0m  \033[4;36m"
+    "\033[1m[" link-id "]\033[0m  \033[4;36m"
     (if (null? (cddr tokens))
       ; No description, show url
       (cadr tokens)
@@ -74,9 +82,10 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
     ; Reset formatting
     "\033[0m"))
 
-  ; Store link data
-  (hash-set! links (current-link-number) (cadr tokens))
-  (current-link-number (add1 (current-link-number))))
+  (when gemini?
+    ; Store link data
+    (hash-set! links (current-link-number) (cadr tokens))
+    (current-link-number (add1 (current-link-number)))))
 
 (: display-header (-> String Void))
 (define (display-header header)
@@ -84,7 +93,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
   (display
     (match header
       ; h3
-      [(regexp #rx"^###") "\033[1;33m"]
+      [(regexp #rx"^###") "\033[1;35m"]
       ; h2
       [(regexp #rx"^##")  "\033[1;32m"]
       ; h1
