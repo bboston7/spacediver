@@ -1,0 +1,164 @@
+#!/usr/bin/env racket
+
+#|
+Copyright (C) 2020  Brett Boston
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as published
+by the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License
+along with this program.  If not, see <https://www.gnu.org/licenses/>.
+|#
+
+#lang typed/racket/base
+
+(require racket/format
+         racket/match
+         racket/string
+         typed/net/url
+         "gemini.rkt")
+
+(define REPL_PROMPT "dive> ")
+
+; TODO: Control these with command line flags
+(define DEBUG (make-parameter #f))
+(define current-link-number (make-parameter 1))
+
+; A history of a list of pairs of urls and page content.  The URLS should
+; always be absolute paths.
+(define-type History (Listof (Pair URL (Listof String))))
+
+; Gemtext list for page history.  In theory this could get large, but in
+; practice I doubt it'll be an issue unless gemsites become as large as
+; websites
+(: current-pages (Parameterof History))
+(define current-pages (make-parameter null))
+
+; Like current-pages, but to enable forward history
+(: current-forwards (Parameterof History))
+(define current-forwards (make-parameter null))
+
+(: debug (-> Any Void))
+(define (debug msg) (when (DEBUG) (displayln (~a "DEBUG: " msg))))
+
+(: links (Mutable-HashTable Integer String))
+(define links (make-hasheq))
+
+(: reset-state (-> Void))
+(define (reset-state)
+  (hash-clear! links)
+  (current-link-number 1))
+
+(: display-link (-> String Void))
+(define (display-link link)
+  (define tokens (string-split link))
+  (debug tokens)
+  (displayln (~a "[" (current-link-number) "]  " (string-join (cddr tokens))))
+  (hash-set! links (current-link-number) (cadr tokens))
+  (current-link-number (add1 (current-link-number))))
+
+#|
+Display the current page
+
+Parameters:
+  raw - True to display raw gemtext, false to pretty print
+|#
+(: display-gemtext (-> Boolean Void))
+(define (display-gemtext raw)
+  (reset-state)
+  ; Skip first line (status code) if pretty printing, but include in raw mode
+  (: page (Listof String))
+  (define page (cdar (current-pages)))
+  (define lines (if raw page (cdr page)))
+  (for ([line lines])
+    (cond
+      [raw (displayln line)]
+      [(regexp-match #rx"^=>" line) (display-link line)]
+      [else (displayln line)])))
+
+#|
+Given a url string, transacts with the server and displays rendered gemtext.
+Handles both relative and absolute paths.
+|#
+(: handle-url (-> String Void))
+(define (handle-url urlstr)
+  ; Check URL
+  (define url (string->url urlstr))
+  ; TODO: Add gemini:// if missing
+
+  ; Translate to absolute path if necessary
+  (define absolute-url
+    (if (url-path-absolute? url)
+      ; Check for unsupported protocols
+      (cond
+        [(and (url-scheme url) (not (equal? (url-scheme url) "gemini")))
+         (displayln (~a "Unsupported URL scheme: " (url-scheme url)))
+         #f]
+        [else url])
+      (combine-url/relative (caar (current-pages)) urlstr)))
+
+  (when absolute-url
+    ; Transact and display
+    (current-pages (cons `(,absolute-url . ,(transact absolute-url))
+                         (current-pages)))
+    (display-gemtext #f)
+
+    ; clear forwards
+    (current-forwards null)))
+
+(: handle-link (-> String Void))
+(define (handle-link key)
+  (define link-number (string->number (string-trim key)))
+  (if (fixnum? link-number)
+    (let ([url (hash-ref links link-number (λ () #f))])
+      (if url
+        (handle-url url)
+        (displayln (~a "No such link number: " link-number))))
+    (displayln (~a "Illegal link number: " key))))
+
+#|
+Handle history, moving from `from` to `to`, unless `from` is empty, in which
+case do nothing
+|#
+(: handle-history (-> (Parameterof History) (Parameterof History) Void))
+(define (handle-history from to)
+  (unless (or (null? (from)) (null? (cdr (from))))
+    (to (cons (car (from)) (to)))
+    (from (cdr (from)))
+    (display-gemtext #f)))
+
+(: repl (-> Void))
+(define (repl)
+  (display REPL_PROMPT)
+  (flush-output)
+  (define expr (read-line))
+  (cond
+    [(eof-object? expr) (void)]
+    [else
+      (match expr
+        ; Follow a link
+        [(regexp #"^l ") (handle-link (substring expr 2))]
+        ; Display raw gemtext for current page
+        ["raw" (display-gemtext #t)]
+        ; Re-display pretty printed gemtext for current page
+        ["pretty" (display-gemtext #f)]
+        ; Go back one page (if possible)
+        ["b" (handle-history current-pages current-forwards)]
+        ; For forward one page (if possible)
+        ["f" (handle-history current-forwards current-pages)]
+        ; Treat input as a url to open
+        [_ (handle-url expr)])
+      (repl)]))
+
+; TODO: Main function
+
+(repl)
+
+;(display-gemtext (transact (string->url "gemini://gemini.circumlunar.space/")))

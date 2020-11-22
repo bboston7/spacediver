@@ -1,0 +1,4 @@
+# Spacediver #
+
+Spacediver is a [Gemini](https://gemini.circumlunar.space/) client written in
+Racket.  It is a work in progress.
