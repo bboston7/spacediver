@@ -76,11 +76,24 @@ Parameters:
   ; Skip first line (status code) if pretty printing, but include in raw mode
   (: page (Listof String))
   (define page (cdar (current-pages)))
+
+  ; Track whether or not the parser is in a pre block
+  (: current-pre (Parameterof Boolean))
+  (define current-pre (make-parameter #f))
+
+  ; Parse lines
   (define lines (if raw page (cdr page)))
   (for ([line lines])
     (cond
+      ; Raw mode does no processing
       [raw (displayln line)]
+      ; Start or end of a pre block
+      [(regexp-match #rx"^```" line) (current-pre (not (current-pre)))]
+      ; In a pre block, ignore formatting
+      [(current-pre) (displayln line)]
+      ; Link
       [(regexp-match #rx"^=>" line) (display-link line)]
+      ; Normal text
       [else (displayln line)])))
 
 #|
