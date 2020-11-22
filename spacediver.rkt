@@ -63,12 +63,18 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 (: display-link (-> String Void))
 (define (display-link link)
   (define tokens (string-split link))
-  (debug tokens)
-  (displayln (~a "\033[1m["
-                 (current-link-number)
-                 "]  \033[0m\033[4;36m"
-                 (string-join (cddr tokens))
-                 "\033[0m"))
+  (displayln (~a
+    ; link number
+    "\033[1m[" (current-link-number) "]\033[0m  \033[4;36m"
+    (if (null? (cddr tokens))
+      ; No description, show url
+      (cadr tokens)
+      ; Show description
+      (string-join (cddr tokens)))
+    ; Reset formatting
+    "\033[0m"))
+
+  ; Store link data
   (hash-set! links (current-link-number) (cadr tokens))
   (current-link-number (add1 (current-link-number))))
 
