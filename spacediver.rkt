@@ -244,6 +244,12 @@ Use tmux to go to the top of the page
 
 ; TODO: Main function
 
-(repl)
+(with-handlers ([exn:fail?
+                 (λ ([x : exn])
+                   ; Write out gemtext and exit
+                   (write-gemtext "crash.gmi")
+                   ((error-display-handler) (exn-message x) x)
+                   (exit 1))])
+  (repl))
 
 ;(display-gemtext (transact (string->url "gemini://gemini.circumlunar.space/")))
