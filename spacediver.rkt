@@ -155,7 +155,7 @@ Handles both relative and absolute paths.
 
   ; Translate to absolute path if necessary
   (define absolute-url
-    (if (url-path-absolute? url)
+    (if (url-host url)
       ; Check for unsupported protocols
       (cond
         [(and (url-scheme url) (not (equal? (url-scheme url) "gemini")))
@@ -238,18 +238,28 @@ Use tmux to go to the top of the page
         [(regexp #rx"^w ") (write-gemtext (string-trim (substring expr 2)))]
         ; Scroll to the top of the page
         ["t" (goto-top)]
+        ; Print the current page's URL
+        ["p" (displayln (url->string (caar (current-pages))))]
         ; Treat everything else as links
         [_ (handle-link expr)])
       (repl)]))
 
 ; TODO: Main function
 
-(with-handlers ([exn:fail?
-                 (λ ([x : exn])
-                   ; Write out gemtext and exit
-                   (write-gemtext "crash.gmi")
-                   ((error-display-handler) (exn-message x) x)
-                   (exit 1))])
-  (repl))
+(: main-loop (-> Void))
+(define (main-loop)
+  (with-handlers ([exn:fail?
+                   (λ ([x : exn])
+                     ; Write out gemtext, print error, and try to continue
+                     (write-gemtext "exception.gmi")
+                     (displayln (~a "An exception occurred.  Attempting to "
+                                    "continue, but internal state may be "
+                                    "inconsistant!")
+                                (current-error-port))
+                     ((error-display-handler) (exn-message x) x)
+                     (main-loop))])
+    (repl)))
+
+(main-loop)
 
 ;(display-gemtext (transact (string->url "gemini://gemini.circumlunar.space/")))
