@@ -32,6 +32,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 ; TODO: Control these with command line flags
 (define DEBUG (make-parameter #f))
 (define current-link-number (make-parameter 1))
+(define LINE_WIDTH 80)
 
 ; A history of a list of pairs of urls and page content.  The URLS should
 ; always be absolute paths.
@@ -103,6 +104,33 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
   (displayln (~a header "\033[0m")))
 
 #|
+Display a line of text, with some smart wrapping for readability
+|#
+(: display-text (-> String Void))
+(define (display-text line)
+  (: display-token (-> (Listof String) Integer Void))
+  (define (display-token tokens chars)
+    (unless (null? tokens)
+      (define token (car tokens))
+      (define token-len (string-length token))
+      (cond
+        [(> token-len chars)
+         ; Add newline, followed by token, then recurse
+         (display (~a "\n" token " "))
+         (display-token (cdr tokens) (- LINE_WIDTH token-len 1))]
+        [(= token-len chars)
+         ; Omit trailing space
+         (display token)
+         ; Recurse with 0 as argument, in case (null? (cdr tokens))
+         (display-token (cdr tokens) 0)]
+        [else
+         (display (~a token " "))
+         (display-token (cdr tokens) (- chars token-len 1))])))
+
+  (display-token (string-split line) LINE_WIDTH)
+  (displayln ""))
+
+#|
 Display the current page
 
 Parameters:
@@ -137,7 +165,7 @@ Parameters:
       ; Header
       [(regexp-match #rx"^#" line) (display-header line)]
       ; Normal text
-      [else (displayln line)]))
+      [else (display-text line)]))
 
   ; Add an extra newline before the prompt
   (displayln ""))
