@@ -247,7 +247,7 @@ Use tmux to go to the top of the page
   (flush-output)
   (define expr (read-line))
   (cond
-    [(eof-object? expr) (void)]
+    [(eof-object? expr) (exit 0)]
     [else
       (match expr
         ; Open URL
@@ -268,6 +268,8 @@ Use tmux to go to the top of the page
         ["t" (goto-top)]
         ; Print the current page's URL
         ["p" (displayln (url->string (caar (current-pages))))]
+        ; Quit
+        ["q" (exit 0)]
         ; Treat everything else as links
         [_ (handle-link expr)])
       (repl)]))
@@ -284,9 +286,9 @@ Use tmux to go to the top of the page
                                     "continue, but internal state may be "
                                     "inconsistant!")
                                 (current-error-port))
-                     ((error-display-handler) (exn-message x) x)
-                     (main-loop))])
-    (repl)))
+                     ((error-display-handler) (exn-message x) x))])
+    (repl))
+  (main-loop))
 
 (main-loop)
 
