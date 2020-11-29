@@ -131,6 +131,19 @@ Display a line of text, with some smart wrapping for readability
   (displayln ""))
 
 #|
+Given a status line, builds a redirect page to render
+|#
+(: build-redirect-page (-> String (Listof String)))
+(define (build-redirect-page status-line)
+  (define dest (cadr (string-split status-line)))
+  `("# Redirect"
+    ""
+    ,(~a "This page would like to redirect you.  Accept the redirect by "
+         "following the link below, or use the back command (b) to go back.")
+    ""
+    ,(~a "=> " dest)))
+
+#|
 Display the current page
 
 Parameters:
@@ -149,7 +162,15 @@ Parameters:
   ; Skip first line (status code) if pretty printing and status code is 20, but
   ; otherwise include it
   (define lines
-    (if (or raw (not (regexp-match #rx"^20" (car page)))) page (cdr page)))
+    (cond
+      ; No pre-rendering of raw text
+      [raw page]
+      ; Strip first line if status code is 20
+      [(string-prefix? (car page) "20") (cdr page)]
+      ; Build redirect gemtext on redirect status code
+      [(string-prefix? (car page) "3") (build-redirect-page (car page))]
+      ; Display all other status codes as-is
+      [else page]))
 
   ; Parse lines
   (for ([line lines])
