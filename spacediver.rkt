@@ -24,6 +24,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
          racket/match
          racket/string
          racket/system
+         typed/net/mime
          typed/net/url
          "gemini.rkt")
 
@@ -143,6 +144,8 @@ Given a status line, builds a redirect page to render
     ""
     ,(~a "=> " dest)))
 
+
+
 #|
 Display the current page
 
@@ -165,8 +168,19 @@ Parameters:
     (cond
       ; No pre-rendering of raw text
       [raw page]
-      ; Strip first line if status code is 20
-      [(string-prefix? (car page) "20") (cdr page)]
+      ; Success code, parse mime type to figure out what to do next
+      [(string-prefix? (car page) "20")
+       (define mime-str (string-trim (substring (car page) 3)))
+       (match (parse-mime mime-str)
+         ; Strip status line and render gemini
+         [(cons 'text 'gemini) (cdr page)]
+         ; For all other forms of text, put renderer in raw mode and print
+         [(cons 'text _) (set! raw #t)
+                         (cdr page)]
+         ; Should only be text mime types in the history lists
+         [_ (error (~a "Unexpected non-text mime type "
+                       mime-str
+                       " in display-gemtext"))])]
       ; Build redirect gemtext on redirect status code
       [(string-prefix? (car page) "3") (build-redirect-page (car page))]
       ; Display all other status codes as-is
@@ -190,6 +204,18 @@ Parameters:
 
   ; Add an extra newline before the prompt
   (displayln ""))
+
+(: handle-bytes (-> (Pair (Pair Symbol Symbol) Bytes) Void))
+(define (handle-bytes page)
+  (match (car page)
+    ; Open images in feh
+    [(cons 'image _)
+     (process/ports #f
+                    (open-input-bytes (cdr page))
+                    #f
+                    "feh -")
+     (void)]
+    [_ (displayln (~a "Unsupported mime type: " (car page)))]))
 
 
 #|
@@ -215,12 +241,17 @@ Handles both relative and absolute paths.
 
   (when absolute-url
     ; Transact and display
-    (current-pages (cons `(,absolute-url . ,(transact absolute-url))
-                         (current-pages)))
-    (display-gemtext #f)
-
-    ; clear forwards
-    (current-forwards null)))
+    (define page (transact absolute-url))
+    (cond
+      [(list? page)
+       ; This is a text page
+       (current-pages (cons `(,absolute-url . ,page) (current-pages)))
+       (display-gemtext #f)
+       ; clear forwards
+       (current-forwards null)]
+      [(pair? page)
+       ; This is a non-text page
+       (handle-bytes page)])))
 
 (: handle-link (-> String Void))
 (define (handle-link key)

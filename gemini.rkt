@@ -19,21 +19,27 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 (require typed/net/url
          typed/openssl
-         racket/format)
+         racket/format
+         racket/match
+         racket/port
+         racket/string)
 
-(provide transact)
+(provide parse-mime transact)
 
 (: GEMINI_PORT Positive-Integer)
 (define GEMINI_PORT 1965)
 
-(: read-lines (-> Input-Port (Listof String)))
-(define (read-lines input)
-  (define line (read-line input))
-  (cond
-    [(eof-object? line) null]
-    [else (cons line (read-lines input))]))
+#|
+Parse a mime of form type/subtype to a pair of (type . subtype).  Ignores
+parameters.
+|#
+(: parse-mime (-> String (Pair Symbol Symbol)))
+(define (parse-mime mime)
+  (define base (car (string-split mime ";")))
+  (define split (string-split base "/"))
+  `(,(string->symbol (car split)) . ,(string->symbol (cadr split))))
 
-(: transact (-> URL (Listof String)))
+(: transact (-> URL (U (Listof String) (Pair (Pair Symbol Symbol) Bytes))))
 (define (transact resource)
   ; Connect
   (define resource-port (url-port resource))
@@ -47,5 +53,21 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
   ; Make request
   (write-string (~a (url->string resource) "\r\n") output)
   (flush-output output)
-  ; Read response
-  (read-lines input))
+  ; Read header
+  (define header (read-line input))
+  (cond
+    [(eof-object? header) null]
+    [(string-prefix? header "20")
+     ; Parse mime type
+     (define mime-type (parse-mime (string-trim (substring header 3))))
+     (match mime-type
+       [(cons 'text _)
+        ; Append remaining page as list and return
+        (cons header (port->lines input #:close? #t))]
+       [_
+        ; Process remaining page as bytes.  Strip header and return mime type
+        ; as a pair of symbols
+        (cons mime-type (port->bytes input #:close? #t))])]
+    [else
+     ; Read response as list, with header prepended
+     (cons header (port->lines input #:close? #t))]))
