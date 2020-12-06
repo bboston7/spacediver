@@ -265,11 +265,12 @@ Handles both relative and absolute paths.
 
 #|
 Handle history, moving from `from` to `to`, unless `from` is empty, in which
-case do nothing
+case do nothing.  If `buffer-from` is #t, then `from` will not be popped if it
+has only 1 element.
 |#
-(: handle-history (-> (Parameterof History) (Parameterof History) Void))
-(define (handle-history from to)
-  (unless (or (null? (from)) (null? (cdr (from))))
+(: handle-history (-> (Parameterof History) (Parameterof History) Boolean Void))
+(define (handle-history from to buffer-from?)
+  (unless (or (null? (from)) (and buffer-from? (null? (cdr (from)))))
     (to (cons (car (from)) (to)))
     (from (cdr (from)))
     (display-gemtext #f)))
@@ -311,9 +312,9 @@ Use tmux to go to the top of the page
         ; Re-display pretty printed gemtext for current page
         ["pretty" (display-gemtext #f)]
         ; Go back one page (if possible)
-        ["b" (handle-history current-pages current-forwards)]
+        ["b" (handle-history current-pages current-forwards #t)]
         ; For forward one page (if possible)
-        ["f" (handle-history current-forwards current-pages)]
+        ["f" (handle-history current-forwards current-pages #f)]
         ; Save current page to a file
         [(regexp #rx"^w ") (write-gemtext (string-trim (substring expr 2)))]
         ; Scroll to the top of the page
