@@ -145,6 +145,24 @@ Given a status line, builds a redirect page to render
     ,(~a "=> " dest)))
 
 
+#|
+Handle an INPUT request
+|#
+(: handle-query (-> String Void))
+(define (handle-query in-prompt)
+  (display-header "# Input")
+  (displayln "")
+  (display-text (~a "This page is requesting user input.  Respond to the "
+                    "prompt below, or leave blank to return to the spacediver "
+                    "prompt without sending a request."))
+  (displayln "")
+  (display (~a in-prompt ": "))
+  (define query (read-line))
+  (when (non-empty-string? query)
+    ; Replace query param in current page struct and transact
+    (handle-absolute-url
+      (struct-copy url (caar (current-pages))
+                   [query `((,(string->symbol query) . #f))]))))
 
 #|
 Display the current page
@@ -168,6 +186,11 @@ Parameters:
     (cond
       ; No pre-rendering of raw text
       [raw page]
+      ; User input request.  Handle separately, and do no rendering of this
+      ; page
+      [(string-prefix? (car page) "10")
+       (handle-query (string-trim (substring (car page) 3)))
+       null]
       ; Success code, parse mime type to figure out what to do next
       [(string-prefix? (car page) "20")
        (define mime-str (string-trim (substring (car page) 3)))
@@ -223,6 +246,25 @@ Parameters:
        (display-to-file (cdr page) path))]))
 
 #|
+Given a URL struct with an absolute URL, transacts with the server and displays
+the rendered gemtext.
+|#
+(: handle-absolute-url (-> URL Void))
+(define (handle-absolute-url absolute-url)
+  (define page (transact absolute-url))
+  (cond
+    [(list? page)
+     ; This is a text page
+     (current-pages (cons `(,absolute-url . ,page) (current-pages)))
+     (display-gemtext #f)
+     ; clear forwards
+     (current-forwards null)]
+    [(pair? page)
+     ; This is a non-text page
+     (handle-bytes page)]))
+
+
+#|
 Given a url string, transacts with the server and displays rendered gemtext.
 Handles both relative and absolute paths.
 |#
@@ -243,19 +285,7 @@ Handles both relative and absolute paths.
         [else url])
       (combine-url/relative (caar (current-pages)) urlstr)))
 
-  (when absolute-url
-    ; Transact and display
-    (define page (transact absolute-url))
-    (cond
-      [(list? page)
-       ; This is a text page
-       (current-pages (cons `(,absolute-url . ,page) (current-pages)))
-       (display-gemtext #f)
-       ; clear forwards
-       (current-forwards null)]
-      [(pair? page)
-       ; This is a non-text page
-       (handle-bytes page)])))
+  (when absolute-url (handle-absolute-url absolute-url)))
 
 (: handle-link (-> String Void))
 (define (handle-link key)
