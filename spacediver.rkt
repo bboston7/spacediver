@@ -215,8 +215,12 @@ Parameters:
                     #f
                     "feh -")
      (void)]
-    [_ (displayln (~a "Unsupported mime type: " (car page)))]))
-
+    [_
+     (displayln (~a "Unsupported mime type: " (car page)))
+     (display "Enter path to save file to (leave blank to discard): ")
+     (define path (read-line))
+     (when (non-empty-string? path)
+       (display-to-file (cdr page) path))]))
 
 #|
 Given a url string, transacts with the server and displays rendered gemtext.
