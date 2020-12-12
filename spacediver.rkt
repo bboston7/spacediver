@@ -27,9 +27,6 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 (define REPL_PROMPT "dive> ")
 
-;; TODO : Wrap non-argument names in a lambda that calls equal? on expr, and
-;argument cases with a lambda that checks whether the start of the string
-;matches starts-with
 (define-syntax command-list
   (syntax-rules ()
     [(command-list) null]
