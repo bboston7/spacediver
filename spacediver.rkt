@@ -27,38 +27,94 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 (define REPL_PROMPT "dive> ")
 
+;; TODO : Wrap non-argument names in a lambda that calls equal? on expr, and
+;argument cases with a lambda that checks whether the start of the string
+;matches starts-with
+(define-syntax command-list
+  (syntax-rules ()
+    [(command-list) null]
+    ; For commands that don't take an argument
+    [(command-list [name f help-body] binding ...)
+     (cons (list (λ ([expr : String]) (equal? name expr))
+                 (λ ([expr : String]) f)
+                 name
+                 help-body)
+           (command-list binding ...))]
+    ; For command that do take an argument
+    [(command-list [starts-with expr f arg-name help-body] binding ...)
+     (cons (list (λ ([expr : String]) (string-prefix? expr starts-with))
+                 (λ ([expr : String]) f)
+                 (~a starts-with
+                     (if (non-empty-string? starts-with) " " "")
+                     "<" arg-name ">")
+                 help-body)
+           (command-list binding ...))]))
+
+(define-type Command (List (-> String Boolean) (-> String Void) String String))
+
+(: COMMANDS (Listof Command))
+(define COMMANDS
+  (command-list
+    ["o" expr (handle-url (string-trim (substring expr 2)))
+     "URL" "Open URL"]
+    ["raw" (display-gemtext #t) "Display raw gemtext for current page"]
+    ["pretty" (display-gemtext #f)
+     "Re-display pretty printed gemtext for current page"]
+    ["b" (handle-history current-pages current-forwards #t)
+     "Go back one page (if possible)"]
+    ["f" (handle-history current-forwards current-pages #f)
+     "Go forward one page (if possible)"]
+    ["w" expr (write-gemtext (string-trim (substring expr 2)))
+     "file" "Save current page to <file>"]
+    ["t" (goto-top)
+     "Scroll to the top of the page (must be running in tmux)"]
+    ["p" (displayln (url->string (caar (current-pages))))
+     "Print the current page's URL"]
+    ["q" (exit 0) "quit"]
+    ["h" (display-help) "Display this help message"]
+    ; Treat everything else as links
+    ["" expr (handle-link expr)
+     "link number" "Follow a link"]))
+
+(define HELP_LHS_LEN
+  (+ 2
+     (foldl (λ ([cmd : Command] [res : Integer])
+               (max (string-length (caddr cmd)) res))
+            0
+            COMMANDS)))
+
+#|
+The EP part of REPL
+|#
+(: eval-print (-> String Void))
+(define (eval-print expr)
+  (set! expr (string-trim expr))
+  (define cmd
+    (assert (memf (λ ([elem : Command]) ((car elem) expr)) COMMANDS)))
+  ((cadar cmd) expr))
+
+(: display-help (-> Void))
+(define (display-help)
+  (for ([cmd : Command COMMANDS])
+    (: lhs String)
+    (define lhs (caddr cmd))
+    (displayln (~a "  "
+                   lhs
+                   (make-string (- HELP_LHS_LEN (string-length lhs)) #\ )
+                   (cadddr cmd)))))
+
 (: repl (-> Void))
 (define (repl)
   (display REPL_PROMPT)
   (flush-output)
+  ; R
   (define expr (read-line))
   (cond
     [(eof-object? expr) (exit 0)]
-    [else
-      (match expr
-        ; Open URL
-        [(regexp #rx"^o ") (handle-url (string-trim (substring expr 2)))]
-        ; Follow a link
-        [(regexp #rx"^l ") (handle-link (string-trim (substring expr 2)))]
-        ; Display raw gemtext for current page
-        ["raw" (display-gemtext #t)]
-        ; Re-display pretty printed gemtext for current page
-        ["pretty" (display-gemtext #f)]
-        ; Go back one page (if possible)
-        ["b" (handle-history current-pages current-forwards #t)]
-        ; For forward one page (if possible)
-        ["f" (handle-history current-forwards current-pages #f)]
-        ; Save current page to a file
-        [(regexp #rx"^w ") (write-gemtext (string-trim (substring expr 2)))]
-        ; Scroll to the top of the page
-        ["t" (goto-top)]
-        ; Print the current page's URL
-        ["p" (displayln (url->string (caar (current-pages))))]
-        ; Quit
-        ["q" (exit 0)]
-        ; Treat everything else as links
-        [_ (handle-link expr)])
-      (repl)]))
+    ; EP
+    [else (eval-print expr)
+          ; L
+          (repl)]))
 
 ; TODO: Main function
 
