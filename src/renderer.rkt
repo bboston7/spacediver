@@ -68,7 +68,7 @@ the results of those requests
   (current-link-number 1)
 
   ; Clear terminal
-  (display "\033c"))
+  (display "\e[2J\e[3J\e[H"))
 
 (: display-link (-> String Void))
 (define (display-link link)
