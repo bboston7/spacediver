@@ -42,6 +42,7 @@ the results of those requests
          handle-url
          load-bookmarks
          load-gemtext
+         load-history
          write-gemtext)
 
 ; TODO: Control these with command line flags
@@ -261,6 +262,7 @@ the rendered gemtext.
 |#
 (: handle-absolute-url (-> URL Void))
 (define (handle-absolute-url absolute-url)
+  (add-history absolute-url)
   (define page (transact absolute-url))
   (cond
     [(list? page)
@@ -351,6 +353,14 @@ Loads the bookmarks file
 (define (load-bookmarks)
   (init-bookmarks)
   (load-gemtext BOOKMARKS_PATH))
+
+#|
+Loads the history file
+|#
+(: load-history (-> Void))
+(define (load-history)
+  (init-history)
+  (load-gemtext HISTORY_PATH))
 
 #|
 Use tmux to go to the top of the page

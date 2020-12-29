@@ -75,6 +75,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
                                (string-trim (substring expr 2))
                                ""))
      "subcommand" "Manage bookmarks.  Leave <subcommand> empty to open bookmarks list and display bookmark help."]
+    ["hist" (load-history) "Display history"]
     ; Treat everything else as links
     ["" expr (handle-link expr)
      "link number" "Follow a link"]))
