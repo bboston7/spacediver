@@ -77,11 +77,13 @@ the results of those requests
 
 (: display-link (-> String Void))
 (define (display-link link)
-  (define tokens (string-split link))
+  ; Lop off "=>" and tokenize.  This works even when links are malformed with
+  ; no spaces between the "=>" and the URL
+  (define tokens (string-split (substring link 2)))
 
   ; If link to a gemini page, give it a number.  Otherwise, display the scheme
   ; instead of a number to make it unselectable.
-  (define link-scheme (url-scheme (string->url (cadr tokens))))
+  (define link-scheme (url-scheme (string->url (car tokens))))
   (define gemini? (or (not link-scheme) (equal? link-scheme "gemini")))
   (define link-id (if gemini? (current-link-number) link-scheme))
 
@@ -89,17 +91,17 @@ the results of those requests
   (displayln (~a
     ; link number
     "\033[1m[" link-id "]\033[0m  \033[4;36m"
-    (if (null? (cddr tokens))
+    (if (null? (cdr tokens))
       ; No description, show url
-      (cadr tokens)
+      (car tokens)
       ; Show description
-      (string-join (cddr tokens)))
+      (string-join (cdr tokens)))
     ; Reset formatting
     "\033[0m"))
 
   (when gemini?
     ; Store link data
-    (hash-set! links (current-link-number) (cadr tokens))
+    (hash-set! links (current-link-number) (car tokens))
     (current-link-number (add1 (current-link-number)))))
 
 (: display-header (-> String Void))
