@@ -63,6 +63,8 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
      "Go forward one page (if possible)"]
     ["w" expr (write-gemtext (string-trim (substring expr 2)))
      "file" "Save current page to <file>"]
+    ["l" expr (load-gemtext (string-trim (substring expr 2)))
+     "file" "Load <file>"]
     ["t" (goto-top)
      "Scroll to the top of the page (must be running in tmux)"]
     ["p" (displayln (url->string (caar (current-pages))))

@@ -38,6 +38,7 @@ the results of those requests
          handle-history
          handle-link
          handle-url
+         load-gemtext
          write-gemtext)
 
 ; TODO: Control these with command line flags
@@ -278,7 +279,6 @@ Handles both relative and absolute paths.
 (define (handle-url urlstr)
   ; Check URL
   (define url (string->url urlstr))
-  ; TODO: Add gemini:// if missing
 
   ; Translate to absolute path if necessary
   (define absolute-url
@@ -289,7 +289,13 @@ Handles both relative and absolute paths.
          (displayln (~a "Unsupported URL scheme: " (url-scheme url)))
          #f]
         [else url])
-      (combine-url/relative (caar (current-pages)) urlstr)))
+      (let ([base-url (caar (current-pages))])
+        (cond
+          [(not (equal? (url-scheme base-url) "gemini"))
+           (displayln (~a "Relative URL from unsupported scheme: "
+                          (url-scheme base-url)))
+           #f]
+          [else (combine-url/relative (caar (current-pages)) urlstr)]))))
 
   (when absolute-url (handle-absolute-url absolute-url)))
 
@@ -320,9 +326,20 @@ Writes the gemtext for the current page to `path`
 |#
 (: write-gemtext (-> String Void))
 (define (write-gemtext path)
+  ; TODO: Convert relative paths to absolute before writing page out?
   (display-lines-to-file (cddar (current-pages))
                          path
                          #:exists 'truncate/replace))
+
+#|
+Loads and renders gemtext from `path`
+|#
+(: load-gemtext (-> String Void))
+(define (load-gemtext path)
+  (current-pages (cons `(,(string->url (~a "file://" path)) .
+                         ,(file->lines path))
+                       (current-pages)))
+  (display-gemtext #f))
 
 #|
 Use tmux to go to the top of the page
