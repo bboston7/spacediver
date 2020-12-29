@@ -69,8 +69,12 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
      "Scroll to the top of the page (must be running in tmux)"]
     ["p" (displayln (url->string (caar (current-pages))))
      "Print the current page's URL"]
-    ["q" (exit 0) "quit"]
+    ["q" (exit 0) "Quit"]
     ["h" (display-help) "Display this help message"]
+    ["m" expr (handle-mark (if (> (string-length expr) 2)
+                               (string-trim (substring expr 2))
+                               ""))
+     "subcommand" "Manage bookmarks.  Leave <subcommand> empty to open bookmarks list and display bookmark help."]
     ; Treat everything else as links
     ["" expr (handle-link expr)
      "link number" "Follow a link"]))
@@ -131,6 +135,7 @@ The EP part of REPL
     (repl))
   (main-loop))
 
+(load-bookmarks)
 (main-loop)
 
 ;(display-gemtext (transact (string->url "gemini://gemini.circumlunar.space/")))

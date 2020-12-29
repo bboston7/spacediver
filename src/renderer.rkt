@@ -29,7 +29,8 @@ the results of those requests
          racket/string
          racket/system
          typed/net/url
-         "gemini.rkt")
+         "gemini.rkt"
+         "local-data.rkt")
 
 (provide current-forwards
          current-pages
@@ -37,7 +38,9 @@ the results of those requests
          goto-top
          handle-history
          handle-link
+         handle-mark
          handle-url
+         load-bookmarks
          load-gemtext
          write-gemtext)
 
@@ -342,6 +345,14 @@ Loads and renders gemtext from `path`
   (display-gemtext #f))
 
 #|
+Loads the bookmarks file
+|#
+(: load-bookmarks (-> Void))
+(define (load-bookmarks)
+  (init-bookmarks)
+  (load-gemtext BOOKMARKS_PATH))
+
+#|
 Use tmux to go to the top of the page
 |#
 (: goto-top (-> Void))
@@ -349,3 +360,19 @@ Use tmux to go to the top of the page
   (system "tmux copy-mode")
   (system "tmux send-keys g")
   (void))
+
+#|
+Handle a bookmark command
+|#
+(: handle-mark (-> String Void))
+(define (handle-mark cmd)
+  (define tokens (string-split cmd))
+  (cond
+    [(null? tokens)
+     ; No sub-command, load bookmarks
+     (load-bookmarks)]
+    [(or (equal? (car tokens) "a") (equal? (car tokens) "add"))
+     ; Add the current page as a bookmark
+     (add-bookmark (caar (current-pages))
+                   (if (null? (cdr tokens)) #f (string-join (cdr tokens))))]
+    [(displayln (~a "Illegal bookmark subcommand: " (car tokens)))]))
