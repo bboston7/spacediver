@@ -388,4 +388,22 @@ Handle a bookmark command
     [(or (equal? (car tokens) "e") (equal? (car tokens) "edit"))
      ; Edit bookmarks file
      (edit-bookmarks)]
+    [(or (equal? (car tokens) "help"))
+     ; Display bookmarks help
+     (displayln "usage: m [subcommand]")
+     (displayln "")
+     (displayln "Without a subcommand, 'm' displays the bookmarks.")
+     (displayln "")
+     (displayln "subcommands:")
+     (displayln "")
+     (displayln "  add [name]  -  Add the current page to the bookmarks ")
+     (displayln "                 list.  Optionally provide [name] to give")
+     (displayln "                 the bookmark a name.")
+     (displayln "  a [name]    -  Same as 'add [name]'")
+     (displayln "  edit        -  Edit the bookmarks file.  This is the")
+     (displayln "                 only way to modify or remove bookmarks.")
+     (displayln "                 The file will be opened in $EDITOR.  If")
+     (displayln "                 $EDITOR is unset, it will be opened in vi.")
+     (displayln "  e           -  Same as 'edit'")
+     (displayln "  help        -  Display this help message")]
     [(displayln (~a "Illegal bookmark subcommand: " (car tokens)))]))

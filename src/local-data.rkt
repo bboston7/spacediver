@@ -72,18 +72,6 @@ Creates the initial bookmark file, if it doesn't already exist
         ""
         "## Bookmarks"
         ""
-        "```"
-        "To use the bookmark manager:"
-        "* 'm' opens this page."
-        "* 'm a [name]' or 'm add [name]' adds a bookmark."
-        "   Optionally, provide [name] to give the bookmark a name."
-        "* 'm e' or 'm edit' edits the bookmarks file.  This is"
-        "   the only way to modify or remove bookmarks.  The file will be"
-        "   opened in $EDITOR.  If $EDITOR is unset, it will be opened in"
-        "   vi.  Be sure to end the file with a newline.  Most editors do"
-        "   this by default."
-        "```"
-        ""
         "=> gemini://gemini.circumlunar.space/ Project Gemini Homepage")
       BOOKMARKS_PATH)))
 

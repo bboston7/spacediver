@@ -37,7 +37,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
                  name
                  help-body)
            (command-list binding ...))]
-    ; For command that do take an argument
+    ; For commands that do take an argument
     [(command-list [starts-with expr f arg-name help-body] binding ...)
      (cons (list (λ ([expr : String]) (string-prefix? expr starts-with))
                  (λ ([expr : String]) f)
@@ -74,7 +74,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
     ["m" expr (handle-mark (if (> (string-length expr) 2)
                                (string-trim (substring expr 2))
                                ""))
-     "subcommand" "Manage bookmarks.  Leave <subcommand> empty to open bookmarks list and display bookmark help."]
+     "subcommand" "Manage bookmarks.  Type 'm help' for a list of subcommands"]
     ["hist" (load-history) "Display history"]
     ; Treat everything else as links
     ["" expr (handle-link expr)
