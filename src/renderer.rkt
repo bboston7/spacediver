@@ -375,4 +375,7 @@ Handle a bookmark command
      ; Add the current page as a bookmark
      (add-bookmark (caar (current-pages))
                    (if (null? (cdr tokens)) #f (string-join (cdr tokens))))]
+    [(or (equal? (car tokens) "e") (equal? (car tokens) "edit"))
+     ; Edit bookmarks file
+     (edit-bookmarks)]
     [(displayln (~a "Illegal bookmark subcommand: " (car tokens)))]))
