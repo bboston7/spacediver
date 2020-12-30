@@ -50,6 +50,9 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 ; File to store history in.  This is a normal gemtext file
 (define HISTORY_PATH (~a DATA_DIR "/history.gmi"))
 
+; Directory storing symlinks to client certificates.
+(define CERTIFICATE_DIR (~a DATA_DIR "/certificates"))
+
 #|
 Creates the data directory, if it doesn't already exist
 |#
@@ -123,3 +126,28 @@ Add an entry to the history file
 (define (add-history url)
   (init-history)
   (add-to-link-file url #f HISTORY_PATH))
+
+#|
+Creates the certificate directory, if it doesn't already exist
+|#
+(: make-certificate-dir (-> Void))
+(define (make-certificate-dir)
+  (make-data-dir)
+  (unless (directory-exists? CERTIFICATE_DIR)
+    (make-directory CERTIFICATE_DIR)))
+
+#|
+Get a list of symlinks to client certificates
+|#
+(: get-certificates (-> (Listof Path)))
+(define (get-certificates)
+  (make-certificate-dir)
+  (directory-list CERTIFICATE_DIR #:build? #t))
+
+#|
+Create a symlink `name` in CERTIFICATE_DIR pointing to `path`
+|#
+(: add-certificate (-> String String Void))
+(define (add-certificate name path)
+  (make-file-or-directory-link (path->complete-path path)
+                               (build-path CERTIFICATE_DIR name)))
