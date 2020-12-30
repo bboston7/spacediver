@@ -40,18 +40,19 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
          [data-home (if (and xdg-data-home (not (non-empty-string?
                                                  xdg-data-home)))
                         xdg-data-home
-                        (~a (assert (getenv "HOME") non-empty-string? )
-                            "/.local/share"))])
-    (~a data-home "/spacediver")))
+                        (build-path (assert (getenv "HOME") non-empty-string?)
+                                    ".local"
+                                    "share"))])
+    (build-path data-home "spacediver")))
 
 ; File to store bookmarks in.  This is just a normal gemtext file.
-(define BOOKMARKS_PATH (~a DATA_DIR "/bookmarks.gmi"))
+(define BOOKMARKS_PATH (build-path DATA_DIR "bookmarks.gmi"))
 
 ; File to store history in.  This is a normal gemtext file
-(define HISTORY_PATH (~a DATA_DIR "/history.gmi"))
+(define HISTORY_PATH (build-path DATA_DIR "history.gmi"))
 
 ; Directory storing symlinks to client certificates.
-(define CERTIFICATE_DIR (~a DATA_DIR "/certificates"))
+(define CERTIFICATE_DIR (build-path DATA_DIR "certificates"))
 
 #|
 Creates the data directory, if it doesn't already exist
@@ -81,7 +82,7 @@ Creates the initial bookmark file, if it doesn't already exist
 #|
 Append a link to a gmi file
 |#
-(: add-to-link-file (-> URL (Option String) String Void))
+(: add-to-link-file (-> URL (Option String) Path Void))
 (define (add-to-link-file url description path)
   (display-to-file
     (~a "=> " (url->string url) (if description (~a " " description) "") "\n")

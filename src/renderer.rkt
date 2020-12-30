@@ -341,7 +341,7 @@ Writes the gemtext for the current page to `path`
 #|
 Loads and renders gemtext from `path`
 |#
-(: load-gemtext (-> String Void))
+(: load-gemtext (-> Path Void))
 (define (load-gemtext path)
   (current-pages (cons `(,(string->url (~a "file://" path)) .
                          ,(file->lines path))
