@@ -244,7 +244,7 @@ Handle CLIENT CERTIFICATE REQUIRED request
          (list-ref privkeys
                    (assert (sub1 (assert (string->number privkey-idx-str)))
                            exact-integer?)))
-       (define cert (path-add-extension privkey".cert" "."))
+       (define cert (path-add-extension privkey ".cert" "."))
        (cond
          [(file-exists? cert)
           (define context (ssl-make-client-context 'tls12))
