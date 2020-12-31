@@ -39,8 +39,10 @@ parameters.
   (define split (string-split base "/"))
   `(,(string->symbol (car split)) . ,(string->symbol (cadr split))))
 
-(: transact (-> URL (U (Listof String) (Pair (Pair Symbol Symbol) Bytes))))
-(define (transact resource)
+(: transact (-> URL
+                (Option SSL-Client-Context)
+                (U (Listof String) (Pair (Pair Symbol Symbol) Bytes))))
+(define (transact resource context)
   ; Connect
   (define resource-port (url-port resource))
   (: port Positive-Integer)
@@ -49,7 +51,9 @@ parameters.
         resource-port
         GEMINI_PORT))
   (define-values (input output)
-    (ssl-connect (assert (url-host resource)) port 'tls12))
+    (ssl-connect (assert (url-host resource))
+                 port
+                 (if context context 'tls12)))
   ; Make request
   (write-string (~a (url->string resource) "\r\n") output)
   (flush-output output)

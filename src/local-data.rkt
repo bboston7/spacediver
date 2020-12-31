@@ -24,10 +24,12 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
          typed/net/url)
 
 (provide BOOKMARKS_PATH
+         CERTIFICATE_DIR
          HISTORY_PATH
          add-bookmark
          add-history
          edit-bookmarks
+         get-certificates
          init-bookmarks
          init-history)
 
@@ -145,10 +147,3 @@ Get a list of symlinks to client certificates
   (make-certificate-dir)
   (directory-list CERTIFICATE_DIR #:build? #t))
 
-#|
-Create a symlink `name` in CERTIFICATE_DIR pointing to `path`
-|#
-(: add-certificate (-> String String Void))
-(define (add-certificate name path)
-  (make-file-or-directory-link (path->complete-path path)
-                               (build-path CERTIFICATE_DIR name)))

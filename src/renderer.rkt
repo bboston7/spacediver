@@ -25,9 +25,11 @@ the results of those requests
 
 (require racket/file
          racket/format
+         racket/list
          racket/match
          racket/string
          racket/system
+         typed/openssl
          typed/net/url
          "gemini.rkt"
          "local-data.rkt")
@@ -65,6 +67,9 @@ the results of those requests
 
 (: links (Mutable-HashTable Integer String))
 (define links (make-hasheq))
+
+(: tls-contexts (Mutable-HashTable String SSL-Client-Context))
+(define tls-contexts (make-hash))
 
 (: reset-state (-> Void))
 (define (reset-state)
@@ -177,6 +182,84 @@ Handle an INPUT request
       (struct-copy url (caar (current-pages))
                    [query `((,(string->symbol query) . #f))]))))
 
+; Display instructions for installing a certificate
+(: display-certificate-instructions (-> Void))
+(define (display-certificate-instructions)
+  (for-each
+    displayln
+    `("1.  Generate a PEM encoded certificate and private key.  Your "
+      "    certificate must have the same filename as your private key with "
+      "    '.cert' appended."
+      "2.  Place both your certificate and private key files in"
+      ,(~a "    " CERTIFICATE_DIR))))
+
+#|
+Handle CLIENT CERTIFICATE REQUIRED request
+|#
+(: handle-certificate-request (-> Void))
+(define (handle-certificate-request)
+  (define certs (get-certificates))
+  (display-header "# Client Certificate Required")
+  (displayln "")
+  (define privkeys
+    (filter
+      (λ ([cert : Path])
+         (not (equal? (last (string-split (path->string cert) ".")) "cert")))
+      certs))
+  (cond
+    [(null? certs)
+     (display-text (~a "This page requires a client certificate, but you have "
+                       "none installed.  To install a client certificate:"))
+     (displayln "")
+     (display-certificate-instructions)]
+    [(null? privkeys)
+     (display-text (~a "This page is requesting a client certificate.  Your "
+                       "certificates directory appears to be missing private "
+                       "keys.  Follow these instructions to properly install "
+                       "your client certificates:"))
+     (displayln "")
+     (display-certificate-instructions)]
+    [else
+     (display-text (~a "This page is requesting a client certificate.  Please "
+                       "select one from the list below.  "
+                       "You may leave the prompt blank to "
+                       "ignore the request and return to the spacediver "
+                       "prompt.  If you do not see the certificate you would "
+                       "like to use, then follow these instructions to "
+                       "install a new certificate:"))
+     (displayln "")
+     (display-certificate-instructions)
+     (displayln "")
+     (display-header "## Your Certificates")
+     (displayln "")
+     (for ([i (range 1 (add1 (length privkeys)))]
+           [privkey privkeys])
+       (define-values (_ name __) (split-path privkey))
+       (displayln (~a i ".  " name)))
+     (displayln "")
+     (display "certificate to use: ")
+     (define privkey-idx-str (read-line))
+     (when (non-empty-string? privkey-idx-str)
+       (define privkey
+         (list-ref privkeys
+                   (assert (sub1 (assert (string->number privkey-idx-str)))
+                           exact-integer?)))
+       (define cert (path-add-extension privkey".cert" "."))
+       (cond
+         [(file-exists? cert)
+          (define context (ssl-make-client-context 'tls12))
+          (ssl-load-private-key! context privkey)
+          (ssl-load-certificate-chain! context cert)
+          (hash-set! tls-contexts
+                     (assert (url-host (caar (current-pages))))
+                     context)
+          (handle-absolute-url (caar (current-pages)))]
+         [else
+           (display-text
+             (~a "Could not find public certificate file.  Please place the "
+                 "certificate file at "
+                 cert))]))]))
+
 #|
 Display the current page
 
@@ -219,6 +302,11 @@ Parameters:
                        " in display-gemtext"))])]
       ; Build redirect gemtext on redirect status code
       [(string-prefix? (car page) "3") (build-redirect-page (car page))]
+      ; Client certificate request.  Handle separately and do no rendering of
+      ; this page
+      [(string-prefix? (car page) "60")
+       (handle-certificate-request)
+       null]
       ; Display all other status codes as-is
       [else page]))
 
@@ -265,7 +353,10 @@ the rendered gemtext.
 (: handle-absolute-url (-> URL Void))
 (define (handle-absolute-url absolute-url)
   (add-history absolute-url)
-  (define page (transact absolute-url))
+  (define page
+    (transact absolute-url (hash-ref tls-contexts
+                                     (assert (url-host absolute-url))
+                                     (λ () #f))))
   (cond
     [(list? page)
      ; This is a text page
